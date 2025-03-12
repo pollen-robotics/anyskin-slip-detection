@@ -1,5 +1,7 @@
+"""Train the slip detection model."""
+
 import json
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 import numpy.typing as npt
@@ -14,7 +16,17 @@ from torch.utils.data import DataLoader, TensorDataset
 from lstm import LSTMNet
 
 
-def evaluate(model: LSTMNet, data_loader: DataLoader[List[torch.Tensor]], device: str) -> float:
+def evaluate(model: LSTMNet, data_loader: DataLoader[Tuple[torch.Tensor, ...]], device: str) -> float:
+    """Evaluate the model on the given data loader and return the accuracy.
+
+    Args:
+        model (LSTMNet): The model to evaluate.
+        data_loader (DataLoader): The data loader containing the evaluation data.
+        device (str): The device to run the evaluation on (e.g., 'cuda' or 'cpu').
+
+    Returns:
+        float: The accuracy of the model on the evaluation data.
+    """
     model.eval()
     correct = 0
     total = 0
@@ -30,8 +42,8 @@ def evaluate(model: LSTMNet, data_loader: DataLoader[List[torch.Tensor]], device
 
 
 def train(
-    train_loader: DataLoader[List[torch.Tensor]],
-    test_loader: DataLoader[List[torch.Tensor]],
+    train_loader: DataLoader[Tuple[torch.Tensor, ...]],
+    test_loader: DataLoader[Tuple[torch.Tensor, ...]],
     model: LSTMNet,
     criterion: nn.Module,
     optimizer: optim.Optimizer,
@@ -39,6 +51,43 @@ def train(
     epochs: int = 100,
     checkpoint_path: str = "checkpoints/best_model.pt",
 ) -> None:
+    """Train the slip detection model.
+
+    Args:
+        train_loader (DataLoader): The data loader containing the training data.
+        test_loader (DataLoader): The data loader containing the test data.
+        model (LSTMNet): The model to train.
+        criterion (nn.Module): The loss function.
+        optimizer (optim.Optimizer): The optimizer.
+        device (str): The device to run the training on (e.g., 'cuda' or 'cpu').
+        epochs (int): The number of epochs to train for.
+        checkpoint_path (str): The path to save the best model checkpoint.
+
+    Returns:
+        None
+    """
+    max_accuracy = 0.0
+
+    for epoch in range(epochs):
+        model.train()
+        for x, y in train_loader:
+            x, y = x.to(device), y.to(device).float()
+            optimizer.zero_grad()
+            y_pred = model(x)
+            loss = criterion(y_pred, y)
+            loss.backward()
+            optimizer.step()
+
+        model.eval()
+        print(f"Epoch {epoch}, train_loss: {loss.item()}")
+        accuracy = evaluate(model, test_loader, device)
+        print(f"Epoch {epoch}, test_accuracy: {accuracy:.4f}")
+
+        # Sauvegarder le modèle si l'accuracy est meilleure
+        if accuracy > max_accuracy:
+            max_accuracy = accuracy
+            torch.save(model.state_dict(), checkpoint_path)
+            print(f"Checkpoint saved at epoch {epoch} with accuracy {accuracy:.4f}")
     max_accuracy = 0.0
 
     for epoch in range(epochs):
@@ -66,7 +115,16 @@ def train(
 def augment_data(
     features: npt.NDArray[np.float64], labels: npt.NDArray[np.bool], augmentation_factor: int = 2
 ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.bool]]:
+    """Augment the dataset by applying jittering and scaling to the features.
 
+    Args:
+        features (npt.NDArray[np.float64]): The input features to augment.
+        labels (npt.NDArray[np.bool]): The corresponding labels for the features.
+        augmentation_factor (int): The factor by which to augment the data.
+
+    Returns:
+        Tuple[npt.NDArray[np.float64], npt.NDArray[np.bool]]: The augmented features and labels.
+    """
     augmented_features = []
     augmented_labels = []
 
@@ -159,11 +217,6 @@ if __name__ == "__main__":
 
     with open("checkpoints/params.json", "w") as f:
         json.dump(params, f)
-
-    print(type(train_loader))
-
-    print(type(test_loader))
-    exit(0)
 
     device = "cuda"
 

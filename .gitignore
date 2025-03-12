@@ -168,3 +168,8 @@ cython_debug/
 docs/*.html
 docs/*.js
 docs/example/
+
+# Pytorch
+*.pt
+*.safetensors
+checkpoints/

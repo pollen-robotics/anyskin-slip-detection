@@ -1,3 +1,5 @@
+"""Simple forward pass to test the trained model."""
+
 import json
 from typing import Any, Dict, List
 
@@ -10,6 +12,14 @@ from lstm import LSTMNet
 
 
 def load_params(params_path: str) -> Dict[Any, Any]:
+    """Load parameters from a JSON file.
+
+    Args:
+        params_path (str): The path to the JSON file containing the parameters.
+
+    Returns:
+        Dict[Any, Any]: A dictionary containing the loaded parameters.
+    """
     with open(params_path, "r") as f:
         params: Dict[Any, Any] = json.load(f)
     return params
@@ -18,6 +28,20 @@ def load_params(params_path: str) -> Dict[Any, Any]:
 def load_model(
     model_path: str, input_size: int, hidden_size: int, lstm_hidden_size: int, output_size: int, nlayers: int, device: str
 ) -> LSTMNet:
+    """Load a pre-trained LSTM model from a file.
+
+    Args:
+        model_path (str): The path to the saved model file.
+        input_size (int): The size of the input features.
+        hidden_size (int): The size of the hidden layer.
+        lstm_hidden_size (int): The size of the LSTM hidden layer.
+        output_size (int): The size of the output layer.
+        nlayers (int): The number of LSTM layers.
+        device (str): The device to load the model onto (e.g., 'cpu' or 'cuda').
+
+    Returns:
+        LSTMNet: The loaded LSTM model.
+    """
     model = LSTMNet(input_size, hidden_size, lstm_hidden_size, output_size, nlayers)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
@@ -26,6 +50,14 @@ def load_model(
 
 
 def load_scaler(scaler_params: Dict[str, List[float]]) -> StandardScaler:
+    """Load a StandardScaler with the given parameters.
+
+    Args:
+        scaler_params (Dict[str, List[float]]): A dictionary containing the mean and scale parameters for the scaler.
+
+    Returns:
+        StandardScaler: A StandardScaler object initialized with the given parameters.
+    """
     scaler = StandardScaler()
     scaler.mean_ = np.array(scaler_params["mean"])
     scaler.scale_ = np.array(scaler_params["scale"])
@@ -33,6 +65,17 @@ def load_scaler(scaler_params: Dict[str, List[float]]) -> StandardScaler:
 
 
 def predict(model: LSTMNet, data: npt.NDArray[np.float64], scaler: StandardScaler, device: str) -> npt.NDArray[np.float64]:
+    """Predict the output for the given data using the trained LSTM model.
+
+    Args:
+        model (LSTMNet): The trained LSTM model.
+        data (npt.NDArray[np.float64]): The input data to predict.
+        scaler (StandardScaler): The scaler used to preprocess the data.
+        device (str): The device to run the prediction on (e.g., 'cpu' or 'cuda').
+
+    Returns:
+        npt.NDArray[np.float64]: The predicted output.
+    """
     data_scaled = scaler.transform(data)
 
     X = torch.tensor(data_scaled, dtype=torch.float32).unsqueeze(1).to(device)
